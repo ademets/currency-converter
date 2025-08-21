@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Currency Converter Extension",
+  "version": "1.0",
+  "description": "A simple currency and crypto converter.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Open Currency Converter",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "permissions": [
+    "https://min-api.cryptocompare.com/*"
+  ]
+}
