@@ -1,13 +1,20 @@
 # Historical Graph Feature
 
-You’ll need three pieces: data, a way to aggregate it per time range, and a chart UI.
+You’ll need three pieces: reliable data, a way to aggregate it per time range, and a chart UI.
 
 - **Pick a price-history source.** CryptoCompare already powers your spot rates and supports historical candles: `https://min-api.cryptocompare.com/data/v2/histohour` (hourly up to 7d), `histoday` (daily up to years). You call with `fsym`, `tsym`, and `limit`. For example, 7 days of hourly data: `.../histohour?fsym=USD&tsym=EUR&limit=7*24`.
-- **Aggregate per range.**
-  - `1d`: 24 hourly points (use `histohour`).
-  - `7d`, `31d`: daily candles (`histoday`).
-  - `3m`, `YTD`, `1y`, `5y`: daily candles with higher `limit`; for YTD filter client-side to this calendar year.
-  - Normalise responses into `{timestamp, close}` pairs in UTC and cache them so switching tabs doesn’t refetch.
+- **Aggregate per range.** Normalise responses into `{timestamp, close}` pairs in UTC and cache them so switching tabs doesn’t refetch. Suggested mapping:
+
+  | Range | Resolution | Endpoint | Limit hint | Extra steps |
+  | --- | --- | --- | --- | --- |
+  | `1d` | Hourly | `histohour` | 24 | none |
+  | `7d` | Hourly | `histohour` | 7 × 24 | downsample to daily if needed |
+  | `31d` | Daily | `histoday` | 31 | none |
+  | `3m` | Daily | `histoday` | 90 | none |
+  | `YTD` | Daily | `histoday` | Days since Jan 1 | filter client-side to current year |
+  | `1y` | Daily | `histoday` | 365 | none |
+  | `5y` | Daily | `histoday` | 5 × 365 | consider downsampling for performance |
+
 - **Render the chart.** Drop in a lightweight chart lib such as Chart.js or Apache ECharts. A line chart with area fill works well. Give the chart a full-width container below the converter, add a segmented control for the ranges, and on change:
   1. Fetch or reuse the series;
   2. Slice to the selected period;
@@ -20,7 +27,7 @@ Once you have the data-fetch util and chart component wired up, you can integrat
 
 ### Workpackage 1: Data Retrieval Layer
 - Create a `fetchHistoricalRates({ fsym, tsym, resolution, limit })` helper that wraps CryptoCompare `histohour`/`histoday`.
-- Add client-side caching keyed by `{fsym, tsym, resolution}` with an expiry buffer to limit API calls.
+- Add client-side caching keyed by `{fsym, tsym, resolution}` with an expiry buffer to limit API calls; consider storing the latest fetch promise to de-dupe concurrent requests.
 - Implement range-specific adapters (1d, 7d, 31d, 3m, YTD, 1y, 5y) that calculate the proper API limit and filter to the requested window.
 - Guard against API throttling and propagate meaningful error objects/messages.
 
