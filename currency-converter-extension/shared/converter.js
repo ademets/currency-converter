@@ -28,12 +28,12 @@
         }
 
         const maxFontSize = parseFloat(element.dataset.baseFontSize) || 16;
-        const minFontSize = Math.max(12, Math.round(maxFontSize * 0.6));
+        const minFontSize = Math.max(8, Math.round(maxFontSize * 0.4));
         let fontSize = maxFontSize;
 
         element.style.fontSize = `${maxFontSize}px`;
 
-        const maxIterations = 12;
+        const maxIterations = Math.max(24, Math.ceil(maxFontSize - minFontSize) + 8);
         let iterations = 0;
         const targetWidth = element.clientWidth;
 
@@ -46,6 +46,13 @@
             element.style.fontSize = `${fontSize}px`;
             iterations += 1;
         }
+    }
+
+    function queueFitAlternatives(container) {
+        if (!container) {
+            return;
+        }
+        container.querySelectorAll('.alt').forEach((node) => queueFit(node));
     }
 
     function normalizeNumericInput(raw) {
@@ -190,6 +197,7 @@
             altDiv.innerHTML = '';
             queueFit(fromAmountInput);
             queueFit(toAmountOutput);
+            queueFitAlternatives(altDiv);
             return;
         }
 
@@ -199,6 +207,7 @@
             altDiv.innerHTML = '';
             queueFit(fromAmountInput);
             queueFit(toAmountOutput);
+            queueFitAlternatives(altDiv);
             return;
         }
 
@@ -237,12 +246,15 @@
                     p.className = 'alt';
                     p.textContent = `(${altAmount} ${curr})`;
                     altDiv.appendChild(p);
+                    queueFit(p);
                 }
             }
+            queueFitAlternatives(altDiv);
         } catch (e) {
             console.error(e);
             toAmountOutput.value = 'Error';
             altDiv.innerHTML = '';
+            queueFitAlternatives(altDiv);
         }
     }
 
@@ -274,6 +286,7 @@
         window.addEventListener('resize', () => {
             queueFit(fromAmountInput);
             queueFit(toAmountOutput);
+            queueFitAlternatives(byId('alternatives'));
         });
 
         updateConversion();

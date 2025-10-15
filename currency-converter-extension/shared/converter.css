@@ -159,6 +159,14 @@ select:focus {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
+}
+
+body.layout-centered .alt-group {
+    flex: 0 0 220px;
+    max-width: 220px;
+    align-self: stretch;
+    margin-left: auto;
 }
 
 .alt {
@@ -166,6 +174,9 @@ select:focus {
     font-size: 1.1rem;
     font-weight: 400;
     white-space: nowrap;
+    display: block;
+    width: 100%;
+    overflow: hidden;
 }
 
 @media (max-width: 768px) {
@@ -201,6 +212,8 @@ select:focus {
     body.layout-centered .alt-group {
         margin-top: 20px;
         align-self: flex-start;
+        flex: 1 1 auto;
+        max-width: none;
     }
 }
 
