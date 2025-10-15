@@ -1,6 +1,52 @@
 (function () {
     const currencies = ['CZK', 'USD', 'EUR', 'CAD', 'ETH', 'BTC', 'SOL'];
     const crypto = ['ETH', 'BTC', 'SOL'];
+    const resizeQueue = new Set();
+
+    function queueFit(element) {
+        if (!element) {
+            return;
+        }
+
+        resizeQueue.add(element);
+        if (resizeQueue.size === 1) {
+            requestAnimationFrame(() => {
+                resizeQueue.forEach((el) => fitInputToWidth(el));
+                resizeQueue.clear();
+            });
+        }
+    }
+
+    function fitInputToWidth(element) {
+        if (!element) {
+            return;
+        }
+
+        const computed = window.getComputedStyle(element);
+        if (!element.dataset.baseFontSize) {
+            element.dataset.baseFontSize = computed.fontSize;
+        }
+
+        const maxFontSize = parseFloat(element.dataset.baseFontSize) || 16;
+        const minFontSize = Math.max(12, Math.round(maxFontSize * 0.6));
+        let fontSize = maxFontSize;
+
+        element.style.fontSize = `${maxFontSize}px`;
+
+        const maxIterations = 12;
+        let iterations = 0;
+        const targetWidth = element.clientWidth;
+
+        while (
+            element.scrollWidth > targetWidth + 1 &&
+            fontSize > minFontSize &&
+            iterations < maxIterations
+        ) {
+            fontSize -= 1;
+            element.style.fontSize = `${fontSize}px`;
+            iterations += 1;
+        }
+    }
 
     function formatAmount(value, decimals) {
         const fixed = (value || 0).toFixed(decimals);
@@ -56,6 +102,8 @@
 
             const decimals = crypto.includes(to) ? 8 : 2;
             toAmountOutput.value = formatAmount(amount * rate, decimals);
+            queueFit(fromAmountInput);
+            queueFit(toAmountOutput);
 
             altDiv.innerHTML = '';
             for (const curr in data) {
@@ -83,9 +131,14 @@
         const fromAmountInput = byId('from-amount');
         const fromCurr = byId('from-curr');
         const toCurr = byId('to-curr');
+        const toAmountOutput = byId('to-amount');
 
         if (fromAmountInput) {
-            fromAmountInput.addEventListener('input', updateConversion);
+            fromAmountInput.addEventListener('input', () => {
+                queueFit(fromAmountInput);
+                updateConversion();
+            });
+            queueFit(fromAmountInput);
         }
         if (fromCurr) {
             fromCurr.addEventListener('change', updateConversion);
@@ -93,6 +146,14 @@
         if (toCurr) {
             toCurr.addEventListener('change', updateConversion);
         }
+        if (toAmountOutput) {
+            queueFit(toAmountOutput);
+        }
+
+        window.addEventListener('resize', () => {
+            queueFit(fromAmountInput);
+            queueFit(toAmountOutput);
+        });
 
         updateConversion();
     }
