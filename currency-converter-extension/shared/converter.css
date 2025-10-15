@@ -95,6 +95,7 @@ input {
     transition: border 0.2s ease;
     width: 100%;
     max-width: var(--input-max-width);
+    color: #5f6a78;
 }
 
 body.layout-centered input {
@@ -108,7 +109,12 @@ input:focus {
 
 input:disabled {
     background: #f0f3f6;
-    color: #555;
+    color: #8b95a3;
+}
+
+.amount-input,
+.amount-output {
+    color: #6b7584;
 }
 
 select {

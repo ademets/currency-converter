@@ -48,6 +48,108 @@
         }
     }
 
+    function normalizeNumericInput(raw) {
+        if (!raw) {
+            return '';
+        }
+
+        const cleaned = raw.replace(/,/g, '').replace(/[^\d.]/g, '');
+        if (!cleaned) {
+            return '';
+        }
+
+        const hasTrailingDot = cleaned.endsWith('.');
+        const [integerPart = '', ...rest] = cleaned.split('.');
+        const fractionalPart = rest.join('');
+        const integerDigits = integerPart.replace(/\D/g, '');
+        let normalizedInteger = integerDigits.replace(/^0+(?=\d)/, '');
+
+        if (normalizedInteger === '' && integerDigits !== '') {
+            normalizedInteger = '0';
+        }
+
+        if (normalizedInteger === '' && fractionalPart.length > 0) {
+            return `0.${fractionalPart}`;
+        }
+
+        if (fractionalPart.length > 0) {
+            if (normalizedInteger === '') {
+                normalizedInteger = '0';
+            }
+            return `${normalizedInteger}.${fractionalPart}`;
+        }
+
+        if (hasTrailingDot && normalizedInteger !== '') {
+            return `${normalizedInteger}.`;
+        }
+
+        return normalizedInteger;
+    }
+
+    function formatInputDisplay(normalized) {
+        if (!normalized) {
+            return '';
+        }
+
+        if (normalized.endsWith('.')) {
+            const integerPart = normalized.slice(0, -1);
+            if (!integerPart) {
+                return '';
+            }
+            const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return `${formattedInteger}.`;
+        }
+
+        const [integerPart = '', fractionalPart] = normalized.split('.');
+        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+        if (fractionalPart !== undefined) {
+            return fractionalPart.length > 0
+                ? `${formattedInteger}.${fractionalPart}`
+                : formattedInteger;
+        }
+
+        return formattedInteger;
+    }
+
+    function applyInputFormatting(input) {
+        if (!input) {
+            return '';
+        }
+
+        const raw = input.value;
+        const normalized = normalizeNumericInput(raw);
+        const formatted = formatInputDisplay(normalized);
+
+        if (formatted !== raw) {
+            const cleanBeforeCaretLength =
+                raw && typeof input.selectionStart === 'number'
+                    ? raw.slice(0, input.selectionStart).replace(/,/g, '').length
+                    : null;
+
+            input.value = formatted;
+
+            if (
+                document.activeElement === input &&
+                typeof input.setSelectionRange === 'function' &&
+                cleanBeforeCaretLength !== null
+            ) {
+                let seen = 0;
+                let caretPos = 0;
+                while (caretPos < formatted.length && seen < cleanBeforeCaretLength) {
+                    if (formatted.charAt(caretPos) !== ',') {
+                        seen += 1;
+                    }
+                    caretPos += 1;
+                }
+                input.setSelectionRange(caretPos, caretPos);
+            }
+        }
+
+        input.dataset.numericValue = normalized;
+        return normalized;
+    }
+
     function formatAmount(value, decimals) {
         const fixed = (value || 0).toFixed(decimals);
         const parts = fixed.split('.');
@@ -82,7 +184,24 @@
             return;
         }
 
-        const amount = parseFloat(fromAmountInput.value) || 1;
+        const normalizedAmount = applyInputFormatting(fromAmountInput);
+        if (!normalizedAmount) {
+            toAmountOutput.value = '';
+            altDiv.innerHTML = '';
+            queueFit(fromAmountInput);
+            queueFit(toAmountOutput);
+            return;
+        }
+
+        const amount = parseFloat(normalizedAmount);
+        if (!Number.isFinite(amount)) {
+            toAmountOutput.value = '';
+            altDiv.innerHTML = '';
+            queueFit(fromAmountInput);
+            queueFit(toAmountOutput);
+            return;
+        }
+
         const from = fromCurr.value;
         const to = toCurr.value;
         const tsyms = currencies.filter((c) => c !== from).join(',');
@@ -134,7 +253,9 @@
         const toAmountOutput = byId('to-amount');
 
         if (fromAmountInput) {
+            applyInputFormatting(fromAmountInput);
             fromAmountInput.addEventListener('input', () => {
+                applyInputFormatting(fromAmountInput);
                 queueFit(fromAmountInput);
                 updateConversion();
             });

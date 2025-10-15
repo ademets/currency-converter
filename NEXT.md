@@ -1,5 +1,6 @@
 # Things to improve
 
+- + Added auto-fit styling and thousands-separator formatting for amount inputs so longer values stay readable.
 - + Unify shared UI and logic between the static page and extension by extracting the duplicated CSS and script into reusable files to keep both surfaces consistent.
 - - Handle same-currency conversions locally so users see immediate results without hitting the API when `from` equals `to`.
 - - Debounce `updateConversion()` to limit network traffic and smooth out rapid input changes.

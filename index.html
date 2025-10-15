@@ -11,7 +11,7 @@
     <div class="container">
         <div class="main">
             <div class="from-group">
-                <input id="from-amount" type="number" value="1" min="0">
+                <input id="from-amount" class="amount-input" type="text" inputmode="decimal" value="1">
                 <select id="from-curr">
                     <option selected>CZK</option>
                     <option>USD</option>
@@ -24,7 +24,7 @@
             </div>
             <span class="swap" onclick="swapCurr()">&#x2194;</span>
             <div class="to-group">
-                <input id="to-amount" type="text" disabled>
+                <input id="to-amount" class="amount-output" type="text" disabled>
                 <select id="to-curr">
                     <option>CZK</option>
                     <option>USD</option>
