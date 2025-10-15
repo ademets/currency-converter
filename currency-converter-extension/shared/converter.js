@@ -2,6 +2,13 @@
     const currencies = ['CZK', 'USD', 'EUR', 'CAD', 'ETH', 'BTC', 'SOL'];
     const crypto = ['ETH', 'BTC', 'SOL'];
 
+    function formatAmount(value, decimals) {
+        const fixed = (value || 0).toFixed(decimals);
+        const parts = fixed.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return parts.length === 2 ? `${parts[0]}.${parts[1]}` : parts[0];
+    }
+
     function byId(id) {
         return document.getElementById(id);
     }
@@ -48,8 +55,7 @@
             }
 
             const decimals = crypto.includes(to) ? 8 : 2;
-            const toAmount = (amount * rate).toFixed(decimals);
-            toAmountOutput.value = toAmount;
+            toAmountOutput.value = formatAmount(amount * rate, decimals);
 
             altDiv.innerHTML = '';
             for (const curr in data) {
@@ -59,7 +65,7 @@
                         continue;
                     }
                     const altDecimals = crypto.includes(curr) ? 8 : 2;
-                    const altAmount = (amount * altRate).toFixed(altDecimals);
+                    const altAmount = formatAmount(amount * altRate, altDecimals);
                     const p = document.createElement('div');
                     p.className = 'alt';
                     p.textContent = `(${altAmount} ${curr})`;
