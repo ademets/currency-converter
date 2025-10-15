@@ -37,8 +37,23 @@
             </div>
             <div id="alternatives" class="alt-group"></div>
         </div>
+        <section class="chart-section" aria-labelledby="popup-chart-title">
+            <header class="chart-header">
+                <h2 id="popup-chart-title" class="chart-title">History</h2>
+                <div class="chart-range" role="group" aria-label="Select time range">
+                    <button class="range-button is-active" data-range="1d">1D</button>
+                    <button class="range-button" data-range="7d">7D</button>
+                    <button class="range-button" data-range="31d">31D</button>
+                </div>
+            </header>
+            <div class="chart-body">
+                <canvas id="history-chart" width="360" height="200"></canvas>
+                <div id="chart-status" class="chart-status" role="status" aria-live="polite"></div>
+            </div>
+        </section>
     </div>
     <script src="shared/history.js"></script>
+    <script src="shared/chart.js"></script>
     <script src="shared/converter.js"></script>
 </body>
 </html>

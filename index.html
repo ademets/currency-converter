@@ -38,8 +38,27 @@
             <span class="separator">|</span>
             <div id="alternatives" class="alt-group"></div>
         </div>
+        <section class="chart-section" aria-labelledby="chart-title">
+            <header class="chart-header">
+                <h2 id="chart-title" class="chart-title">Exchange Rate History</h2>
+                <div class="chart-range" role="group" aria-label="Select time range">
+                    <button class="range-button is-active" data-range="1d">1D</button>
+                    <button class="range-button" data-range="7d">7D</button>
+                    <button class="range-button" data-range="31d">31D</button>
+                    <button class="range-button" data-range="3m">3M</button>
+                    <button class="range-button" data-range="YTD">YTD</button>
+                    <button class="range-button" data-range="1y">1Y</button>
+                    <button class="range-button" data-range="5y">5Y</button>
+                </div>
+            </header>
+            <div class="chart-body">
+                <canvas id="history-chart" width="900" height="360"></canvas>
+                <div id="chart-status" class="chart-status" role="status" aria-live="polite"></div>
+            </div>
+        </section>
     </div>
     <script src="currency-converter-extension/shared/history.js"></script>
+    <script src="currency-converter-extension/shared/chart.js"></script>
     <script src="currency-converter-extension/shared/converter.js"></script>
 </body>
 </html>

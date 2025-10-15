@@ -2,6 +2,7 @@
     const currencies = ['CZK', 'USD', 'EUR', 'CAD', 'ETH', 'BTC', 'SOL'];
     const crypto = ['ETH', 'BTC', 'SOL'];
     const resizeQueue = new Set();
+    let historyController = null;
 
     function queueFit(element) {
         if (!element) {
@@ -53,6 +54,192 @@
             return;
         }
         container.querySelectorAll('.alt').forEach((node) => queueFit(node));
+    }
+
+    function formatChartNumber(value) {
+        const abs = Math.abs(value);
+        if (abs >= 1_000_000_000) {
+            return `${(value / 1_000_000_000).toFixed(1)}B`;
+        }
+        if (abs >= 1_000_000) {
+            return `${(value / 1_000_000).toFixed(1)}M`;
+        }
+        if (abs >= 1_000) {
+            return `${(value / 1_000).toFixed(1)}K`;
+        }
+        if (abs >= 1) {
+            return value.toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+                minimumFractionDigits: 0,
+            });
+        }
+        return value.toLocaleString(undefined, {
+            maximumFractionDigits: 4,
+            minimumFractionDigits: 0,
+        });
+    }
+
+    function formatTimestampForRange(timestamp, range) {
+        const date = new Date(timestamp);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
+        switch (range) {
+            case '1d':
+                return new Intl.DateTimeFormat(undefined, {
+                    hour: 'numeric',
+                    minute: 'numeric',
+                }).format(date);
+            case '7d':
+            case '31d':
+            case '3m':
+                return new Intl.DateTimeFormat(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                }).format(date);
+            case 'YTD':
+            case '1y':
+                return new Intl.DateTimeFormat(undefined, {
+                    month: 'short',
+                }).format(date);
+            case '5y':
+                return new Intl.DateTimeFormat(undefined, {
+                    year: 'numeric',
+                }).format(date);
+            default:
+                return MiniLineChart.defaultFormatDate(timestamp);
+        }
+    }
+
+    function createHistoryController() {
+        const canvas = byId('history-chart');
+        const statusEl = byId('chart-status');
+
+        if (!canvas || typeof MiniLineChart === 'undefined' || !window.CurrencyHistory) {
+            return null;
+        }
+
+        const buttons = Array.from(
+            canvas.closest('.chart-section')?.querySelectorAll('.chart-range .range-button') || [],
+        );
+        const defaultButton =
+            buttons.find((btn) => btn.classList.contains('is-active')) || buttons[0];
+        const defaultRange = defaultButton ? defaultButton.dataset.range : '1d';
+        const state = {
+            currentRange: defaultRange || '1d',
+            buttons,
+            statusEl,
+            requestId: 0,
+            sequence: 0,
+        };
+
+        state.chart = new MiniLineChart(canvas, {
+            formatY: formatChartNumber,
+            formatX: (timestamp) => formatTimestampForRange(timestamp, state.currentRange),
+        });
+
+        const setActiveRange = (range) => {
+            state.currentRange = range;
+            state.buttons.forEach((btn) => {
+                btn.classList.toggle('is-active', btn.dataset.range === range);
+            });
+        };
+
+        if (defaultRange) {
+            setActiveRange(defaultRange);
+        }
+
+        const showStatus = (message) => {
+            if (!state.statusEl) {
+                return;
+            }
+            if (message) {
+                state.statusEl.textContent = message;
+                state.statusEl.classList.add('is-visible');
+            } else {
+                state.statusEl.textContent = '';
+                state.statusEl.classList.remove('is-visible');
+            }
+        };
+
+        const fetchAndRender = () => {
+            const fromCurr = byId('from-curr');
+            const toCurr = byId('to-curr');
+            if (!fromCurr || !toCurr) {
+                return;
+            }
+
+            const fsym = fromCurr.value;
+            const tsym = toCurr.value;
+
+            if (!fsym || !tsym) {
+                state.chart.setData([]);
+                showStatus('Select currencies to see history.');
+                return;
+            }
+
+            state.sequence += 1;
+            const requestId = state.sequence;
+            state.requestId = requestId;
+
+            showStatus('Loading history…');
+
+            window.CurrencyHistory.getRangeSeries({
+                range: state.currentRange,
+                fsym,
+                tsym,
+            })
+                .then((series) => {
+                    if (state.requestId !== requestId) {
+                        return;
+                    }
+
+                    const sanitized = series
+                        .filter((point) => typeof point?.close === 'number')
+                        .map((point) => ({
+                            timestamp: point.timestamp,
+                            close: point.close,
+                        }));
+
+                    state.chart.setData(sanitized);
+                    if (!sanitized.length) {
+                        showStatus('No history available yet.');
+                    } else {
+                        showStatus('');
+                    }
+                })
+                .catch((error) => {
+                    if (state.requestId !== requestId) {
+                        return;
+                    }
+                    console.error('Failed to fetch historical rates', error);
+                    state.chart.setData([]);
+                    showStatus('History unavailable. Try again later.');
+                });
+        };
+
+        state.buttons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const range = btn.dataset.range;
+                if (!range || range === state.currentRange) {
+                    return;
+                }
+                setActiveRange(range);
+                fetchAndRender();
+            });
+        });
+
+        return {
+            refresh: fetchAndRender,
+        };
+    }
+
+    function onCurrencyPairChanged() {
+        updateConversion();
+        if (historyController) {
+            historyController.refresh();
+        }
     }
 
     function normalizeNumericInput(raw) {
@@ -177,7 +364,7 @@
         const temp = fromCurr.value;
         fromCurr.value = toCurr.value;
         toCurr.value = temp;
-        updateConversion();
+        onCurrencyPairChanged();
     };
 
     async function updateConversion() {
@@ -274,14 +461,16 @@
             queueFit(fromAmountInput);
         }
         if (fromCurr) {
-            fromCurr.addEventListener('change', updateConversion);
+            fromCurr.addEventListener('change', onCurrencyPairChanged);
         }
         if (toCurr) {
-            toCurr.addEventListener('change', updateConversion);
+            toCurr.addEventListener('change', onCurrencyPairChanged);
         }
         if (toAmountOutput) {
             queueFit(toAmountOutput);
         }
+
+        historyController = createHistoryController();
 
         window.addEventListener('resize', () => {
             queueFit(fromAmountInput);
@@ -290,6 +479,9 @@
         });
 
         updateConversion();
+        if (historyController) {
+            historyController.refresh();
+        }
     }
 
     if (document.readyState === 'loading') {
