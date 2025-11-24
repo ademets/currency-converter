@@ -74,8 +74,7 @@
             });
         }
         return value.toLocaleString(undefined, {
-            maximumFractionDigits: 4,
-            minimumFractionDigits: 0,
+            maximumSignificantDigits: 4,
         });
     }
 
@@ -137,6 +136,7 @@
         state.chart = new MiniLineChart(canvas, {
             formatY: formatChartNumber,
             formatX: (timestamp) => formatTimestampForRange(timestamp, state.currentRange),
+            enableTooltips: window.AppConfig ? window.AppConfig.enableTooltips : false,
         });
 
         const setActiveRange = (range) => {
@@ -247,7 +247,7 @@
             return '';
         }
 
-        const cleaned = raw.replace(/,/g, '').replace(/[^\d.]/g, '');
+        const cleaned = raw.replace(/,/g, '').replace(/[^\d.eE-]/g, '');
         if (!cleaned) {
             return '';
         }
@@ -255,7 +255,7 @@
         const hasTrailingDot = cleaned.endsWith('.');
         const [integerPart = '', ...rest] = cleaned.split('.');
         const fractionalPart = rest.join('');
-        const integerDigits = integerPart.replace(/\D/g, '');
+        const integerDigits = integerPart.replace(/[^0-9eE-]/g, '');
         let normalizedInteger = integerDigits.replace(/^0+(?=\d)/, '');
 
         if (normalizedInteger === '' && integerDigits !== '') {
@@ -482,6 +482,14 @@
         if (historyController) {
             historyController.refresh();
         }
+    }
+
+    if (typeof window !== 'undefined') {
+        window.ConverterUtils = {
+            normalizeNumericInput,
+            formatAmount,
+            formatChartNumber,
+        };
     }
 
     if (document.readyState === 'loading') {
