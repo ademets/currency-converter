@@ -484,6 +484,14 @@
         }
     }
 
+    if (typeof window !== 'undefined') {
+        window.ConverterUtils = {
+            normalizeNumericInput,
+            formatAmount,
+            formatChartNumber,
+        };
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
