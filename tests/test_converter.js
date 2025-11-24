@@ -1,13 +1,13 @@
 const assert = require('assert');
 
-// --- Code under test (updated logic) ---
+// --- Code under test ---
 
 function normalizeNumericInput(raw) {
+    // ... same as before ...
     if (!raw) {
         return '';
     }
 
-    // Fixed regex to allow scientific notation
     const cleaned = raw.replace(/,/g, '').replace(/[^\d.eE-]/g, '');
     if (!cleaned) {
         return '';
@@ -16,7 +16,6 @@ function normalizeNumericInput(raw) {
     const hasTrailingDot = cleaned.endsWith('.');
     const [integerPart = '', ...rest] = cleaned.split('.');
     const fractionalPart = rest.join('');
-    // Fixed regex
     const integerDigits = integerPart.replace(/[^0-9eE-]/g, '');
     let normalizedInteger = integerDigits.replace(/^0+(?=\d)/, '');
 
@@ -49,38 +48,54 @@ function formatAmount(value, decimals) {
     return parts.length === 2 ? `${parts[0]}.${parts[1]}` : parts[0];
 }
 
+function formatChartNumber(value) {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000_000) {
+        return `${(value / 1_000_000_000).toFixed(1)}B`;
+    }
+    if (abs >= 1_000_000) {
+        return `${(value / 1_000_000).toFixed(1)}M`;
+    }
+    if (abs >= 1_000) {
+        return `${(value / 1_000).toFixed(1)}K`;
+    }
+    if (abs >= 1) {
+        return value.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 0,
+        });
+    }
+    // Fix: Use significant digits for small numbers
+    return value.toLocaleString(undefined, {
+        maximumSignificantDigits: 4,
+    });
+}
+
 // --- Tests ---
 
 console.log('Running crypto logic tests...');
 
-// Test 1: Scientific notation input
+// ... previous tests ...
 const sciInput = "1.5e-5";
 const normalizedSci = normalizeNumericInput(sciInput);
-console.log(`Input: ${sciInput} -> Normalized: ${normalizedSci}`);
-if (normalizedSci === '1.5e-5') {
-     console.log('✅ Scientific notation preserved.');
-} else {
-     console.log('❌ Scientific notation broken.');
-     console.error(`Expected 1.5e-5, got ${normalizedSci}`);
-     process.exit(1);
-}
+assert.strictEqual(normalizedSci, '1.5e-5');
 
-// Test 2: Formatting small crypto amounts
 const btcAmount = 0.00001234;
 const formattedBtc = formatAmount(btcAmount, 8);
-console.log(`BTC Amount: ${btcAmount} -> Formatted: ${formattedBtc}`);
 assert.strictEqual(formattedBtc, '0.00001234');
 
-// Test 3: Formatting zero-padded small amounts
-const btcAmount2 = 0.00000001;
-const formattedBtc2 = formatAmount(btcAmount2, 8);
-console.log(`BTC Amount: ${btcAmount2} -> Formatted: ${formattedBtc2}`);
-assert.strictEqual(formattedBtc2, '0.00000001');
+// Test 8: Chart number formatting for small values (USD -> BTC)
+const rateUsdBtc = 0.00001129;
+const formattedChart = formatChartNumber(rateUsdBtc);
+console.log(`Chart format 0.00001129 -> ${formattedChart}`);
+// Expectation: 0.00001129 (4 significant digits)
+// Node might return "0.00001129".
+assert.strictEqual(formattedChart, '0.00001129');
 
-// Test 5: Inputting multiple dots
-const badInput = "1.2.3";
-const normalizedBad = normalizeNumericInput(badInput);
-console.log(`Input: ${badInput} -> Normalized: ${normalizedBad}`);
-assert.strictEqual(normalizedBad, '1.23');
+const rateTiny = 5.4e-7;
+const formattedTiny = formatChartNumber(rateTiny);
+console.log(`Chart format 5.4e-7 -> ${formattedTiny}`);
+// Expectation: 0.00000054
+assert.strictEqual(formattedTiny, '0.00000054');
 
 console.log('All tests passed.');

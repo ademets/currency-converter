@@ -49,6 +49,7 @@ Key settings:
 A lightweight test script is provided for the Graph data layer:
 ```bash
 node tests/test_graph.js
+node tests/test_converter.js
 ```
 
 ## Data Source

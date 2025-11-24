@@ -74,8 +74,7 @@
             });
         }
         return value.toLocaleString(undefined, {
-            maximumFractionDigits: 4,
-            minimumFractionDigits: 0,
+            maximumSignificantDigits: 4,
         });
     }
 
