@@ -137,6 +137,7 @@
         state.chart = new MiniLineChart(canvas, {
             formatY: formatChartNumber,
             formatX: (timestamp) => formatTimestampForRange(timestamp, state.currentRange),
+            enableTooltips: window.AppConfig ? window.AppConfig.enableTooltips : false,
         });
 
         const setActiveRange = (range) => {

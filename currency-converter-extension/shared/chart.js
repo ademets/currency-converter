@@ -12,6 +12,8 @@
                 labelColor: '#cbd5f5',
                 axisColor: 'rgba(148, 163, 184, 0.28)',
                 background: 'transparent',
+                tooltipBg: '#2c3034',
+                tooltipText: '#e0e4e8',
             };
         }
         return {
@@ -22,6 +24,8 @@
             labelColor: '#5a6372',
             axisColor: 'rgba(30, 41, 59, 0.14)',
             background: 'transparent',
+            tooltipBg: '#ffffff',
+            tooltipText: '#333333',
         };
     }
 
@@ -38,10 +42,22 @@
                 padding: { top: 16, right: 24, bottom: 32, left: 48 },
                 formatY: MiniLineChart.defaultFormatNumber,
                 formatX: MiniLineChart.defaultFormatDate,
+                enableTooltips: false,
                 ...options,
             };
             this.palette = buildPalette();
             this.devicePixelRatio = global.devicePixelRatio || 1;
+            this.activePoint = null;
+
+            if (this.options.enableTooltips) {
+                this.boundMouseMove = (e) => this.handleMouseMove(e);
+                this.boundMouseLeave = () => this.handleMouseLeave();
+                canvas.addEventListener('mousemove', this.boundMouseMove);
+                canvas.addEventListener('mouseleave', this.boundMouseLeave);
+                canvas.addEventListener('touchstart', this.boundMouseMove, { passive: true });
+                canvas.addEventListener('touchmove', this.boundMouseMove, { passive: true });
+                canvas.addEventListener('touchend', this.boundMouseLeave);
+            }
 
             if (typeof ResizeObserver !== 'undefined') {
                 this.resizeObserver = new ResizeObserver(() => this.handleResize());
@@ -66,6 +82,13 @@
         }
 
         destroy() {
+            if (this.options.enableTooltips) {
+                this.canvas.removeEventListener('mousemove', this.boundMouseMove);
+                this.canvas.removeEventListener('mouseleave', this.boundMouseLeave);
+                this.canvas.removeEventListener('touchstart', this.boundMouseMove);
+                this.canvas.removeEventListener('touchmove', this.boundMouseMove);
+                this.canvas.removeEventListener('touchend', this.boundMouseLeave);
+            }
             if (this.resizeObserver) {
                 this.resizeObserver.disconnect();
             }
@@ -156,10 +179,139 @@
                 padding.top +
                 (1 - (value - minY) / (maxY - minY || 1)) * plotHeight;
 
+            this.layout = { padding, plotWidth, plotHeight, minX, maxX, minY, maxY };
+
             this.drawGrid(ctx, padding, plotWidth, plotHeight, minY, maxY, toY);
             this.drawLine(ctx, toX, toY);
             this.drawArea(ctx, padding, plotHeight, toX, toY);
             this.drawExtremes(ctx, padding, plotWidth, plotHeight, minX, maxX, minY, maxY);
+
+            if (this.activePoint) {
+                this.drawTooltip(ctx, toX, toY);
+            }
+        }
+
+        handleMouseMove(e) {
+            if (!this.data || this.data.length < 2 || !this.layout) {
+                return;
+            }
+
+            const rect = this.canvas.getBoundingClientRect();
+            let clientX;
+
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+            } else {
+                clientX = e.clientX;
+            }
+
+            const x = clientX - rect.left;
+            const { padding, plotWidth, minX, maxX } = this.layout;
+
+            if (x < padding.left || x > padding.left + plotWidth) {
+                if (this.activePoint) {
+                    this.activePoint = null;
+                    this.render();
+                }
+                return;
+            }
+
+            const ratio = (x - padding.left) / plotWidth;
+            const targetTimestamp = minX + ratio * (maxX - minX);
+
+            let closest = null;
+            let minDiff = Infinity;
+
+            for (const point of this.data) {
+                const diff = Math.abs(point.timestamp - targetTimestamp);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = point;
+                }
+            }
+
+            if (closest && closest !== this.activePoint) {
+                this.activePoint = closest;
+                this.render();
+            }
+        }
+
+        handleMouseLeave() {
+            if (this.activePoint) {
+                this.activePoint = null;
+                this.render();
+            }
+        }
+
+        drawTooltip(ctx, toX, toY) {
+            const point = this.activePoint;
+            if (!point) return;
+
+            const x = toX(point.timestamp);
+            const y = toY(point.close);
+            const { padding, plotHeight } = this.layout;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x, padding.top);
+            ctx.lineTo(x, padding.top + plotHeight);
+            ctx.strokeStyle = this.palette.gridColor;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = this.palette.lineColor;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = this.palette.tooltipBg;
+            ctx.stroke();
+
+            const textX = this.options.formatX(point.timestamp);
+            const textY = this.options.formatY(point.close);
+            const text = `${textX} • ${textY}`;
+
+            ctx.font = '12px "Inter", "Helvetica Neue", Arial, sans-serif';
+            const textWidth = ctx.measureText(text).width;
+            const boxPadding = 8;
+            const boxWidth = textWidth + boxPadding * 2;
+            const boxHeight = 28;
+
+            let boxX = x - boxWidth / 2;
+            if (boxX < padding.left) boxX = padding.left;
+            if (boxX + boxWidth > this.innerWidth - padding.right) {
+                boxX = this.innerWidth - padding.right - boxWidth;
+            }
+
+            let boxY = y - boxHeight - 10;
+            if (boxY < 0) boxY = y + 10;
+
+            ctx.shadowColor = 'rgba(0,0,0,0.1)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+
+            ctx.fillStyle = this.palette.tooltipBg;
+            if (ctx.roundRect) {
+                ctx.beginPath();
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 6);
+                ctx.fill();
+                ctx.shadowColor = 'transparent';
+                ctx.strokeStyle = this.palette.gridColor;
+                ctx.stroke();
+            } else {
+                ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+                ctx.shadowColor = 'transparent';
+                ctx.strokeStyle = this.palette.gridColor;
+                ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+            }
+
+            ctx.fillStyle = this.palette.tooltipText;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, boxX + boxPadding, boxY + boxHeight / 2);
+
+            ctx.restore();
         }
 
         drawGrid(ctx, padding, plotWidth, plotHeight, minY, maxY, toY) {
