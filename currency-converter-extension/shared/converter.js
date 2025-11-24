@@ -248,7 +248,7 @@
             return '';
         }
 
-        const cleaned = raw.replace(/,/g, '').replace(/[^\d.]/g, '');
+        const cleaned = raw.replace(/,/g, '').replace(/[^\d.eE-]/g, '');
         if (!cleaned) {
             return '';
         }
@@ -256,7 +256,7 @@
         const hasTrailingDot = cleaned.endsWith('.');
         const [integerPart = '', ...rest] = cleaned.split('.');
         const fractionalPart = rest.join('');
-        const integerDigits = integerPart.replace(/\D/g, '');
+        const integerDigits = integerPart.replace(/[^0-9eE-]/g, '');
         let normalizedInteger = integerDigits.replace(/^0+(?=\d)/, '');
 
         if (normalizedInteger === '' && integerDigits !== '') {
